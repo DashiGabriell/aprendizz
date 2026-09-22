@@ -1,0 +1,7 @@
+{
+  "issueTracker": "local",
+  "issuesPath": "docs/issues",
+  "docsPath": "docs",
+  "adrPath": "docs/adr",
+  "contextPath": "CONTEXT.md"
+}

@@ -1,0 +1,2 @@
+-- Conteúdo seedado via scripts/seed-aprendizz.mjs (npm run seed)
+-- Mantém as 17 aulas na ordem do ideia.md com exercícios MCQ + texto + código.
