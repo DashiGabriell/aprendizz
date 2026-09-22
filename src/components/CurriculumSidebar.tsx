@@ -21,7 +21,7 @@ export function CurriculumSidebar({ tree, activeSlug, mobileOpen, onNavigate }: 
       aria-label="Navegação do currículo"
     >
       <div className="study-sidebar-inner">
-        <p className="eyebrow !mb-2">Matéria</p>
+        <p className="eyebrow !mb-2">Curso</p>
         <h2 className="font-display text-lg text-[var(--heading)] leading-tight">{tree.subject.title}</h2>
         <p className="mt-2 text-xs text-[var(--muted)] line-clamp-3">{plain(tree.subject.description_md)}</p>
 

@@ -1,6 +1,6 @@
 # Aprendizz
 
-LMS simples para estudar o plano de Backend (Node.js + TypeScript) da discussão em `ideia.md`, uma aula por vez, com exercício de fixação: **MCQ**, **texto livre (corrigido por IA)** e **código executável** quando a aula ensina programação.
+LMS (**Aprendizz**) com cursos independentes. O primeiro curso é **Backend Empregável** (Node.js + TypeScript), com módulos, aulas e avaliações — exercício de fixação: **MCQ**, **texto livre (IA)** e **código** quando a aula ensina programação.
 
 ## Stack
 
@@ -38,9 +38,10 @@ npm run seed
 ## Uso
 
 1. Acesse `/login` com o usuário do Auth compartilhado
-2. Siga o roadmap — só a primeira aula começa liberada
-3. Em cada aula: estude o markdown e complete MCQ (100%) + texto (IA) + testes de código (se a aula ensinar código)
-4. Ao concluir, a próxima aula destrava
+2. Em `/`, escolha um curso (ex.: Backend Empregável)
+3. No roadmap do curso (`/courses/:slug`), siga a ordem — só a primeira aula começa liberada
+4. Em cada aula: MCQ (100%) + texto (IA) + código (se a aula ensinar)
+5. Ao concluir, a próxima unidade destrava
 
 ## Scripts
 

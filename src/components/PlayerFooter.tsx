@@ -8,6 +8,7 @@ export type NeighborLesson = {
 }
 
 type Props = {
+  courseSlug?: string
   previous: NeighborLesson | null
   next: NeighborLesson | null
   currentStatus: ProgressStatus
@@ -16,6 +17,7 @@ type Props = {
 }
 
 export function PlayerFooter({
+  courseSlug,
   previous,
   next,
   currentStatus,
@@ -24,6 +26,7 @@ export function PlayerFooter({
 }: Props) {
   const navigate = useNavigate()
   const completed = currentStatus === 'completed'
+  const courseHome = courseSlug ? `/courses/${courseSlug}` : '/'
 
   function goPrevious() {
     if (!previous) return
@@ -41,11 +44,36 @@ export function PlayerFooter({
 
   return (
     <footer className="player-footer" role="contentinfo">
-      <Link to="/" className="player-footer-home" aria-label="Voltar ao roadmap" title="Roadmap">
-        <span className="player-home-mark">A</span>
-      </Link>
+      <div className="player-footer-progress" aria-live="polite">
+        <div
+          className="player-progress-bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent}
+          aria-label={`${progressPercent}% concluído`}
+        >
+          <div className="player-progress-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
+        <span className="player-progress-text">
+          <strong>{progressPercent}%</strong>
+          <span className="player-progress-label"> concluído</span>
+        </span>
+        <span className={`player-complete-badge ${completed ? 'is-done' : ''}`}>
+          {completed ? '✓ Unidade concluída' : 'Conclua o exercício para avançar'}
+        </span>
+      </div>
 
-      <div className="player-footer-left">
+      <div className="player-footer-nav">
+        <Link
+          to={courseHome}
+          className="player-footer-home"
+          aria-label="Voltar ao roadmap do curso"
+          title="Roadmap do curso"
+        >
+          <img src="/logo.png" alt="" width={22} height={22} className="player-home-logo" />
+        </Link>
+
         <button
           type="button"
           className="player-btn-nav"
@@ -55,29 +83,7 @@ export function PlayerFooter({
         >
           ← <span className="player-btn-label">Anterior</span>
         </button>
-      </div>
 
-      <div className="player-footer-center">
-        <div className="player-progress" aria-live="polite">
-          <div
-            className="player-progress-bar"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progressPercent}
-          >
-            <div className="player-progress-fill" style={{ width: `${progressPercent}%` }} />
-          </div>
-          <span className="player-progress-text">
-            <strong>{progressPercent}</strong>% concluído
-          </span>
-        </div>
-        <span className={`player-complete-badge ${completed ? 'is-done' : ''}`}>
-          {completed ? '✓ Unidade concluída' : 'Conclua o exercício para avançar'}
-        </span>
-      </div>
-
-      <div className="player-footer-right">
         <button
           type="button"
           className="player-btn-nav player-btn-next"

@@ -24,8 +24,11 @@ export function LoginPage() {
   return (
     <Layout>
       <div className="mx-auto max-w-md reveal-in">
-        <p className="eyebrow">Aprendizz</p>
-        <h1 className="mb-2 text-4xl">Entrar</h1>
+        <div className="mb-4 flex items-center gap-3">
+          <img src="/logo.png" alt="" width={48} height={48} className="brand-logo-img" />
+          <p className="eyebrow !mb-0">Aprendizz</p>
+        </div>
+        <h1 className="page-title mb-2">Entrar</h1>
         <p className="mb-8 text-[var(--muted)]">
           Use a mesma conta do projeto Supabase compartilhado.
         </p>

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { RoadmapPage } from './pages/RoadmapPage'
 import { LessonPage } from './pages/LessonPage'
@@ -22,6 +23,14 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/"
+        element={
+          <Protected>
+            <HomePage />
+          </Protected>
+        }
+      />
+      <Route
+        path="/courses/:courseSlug"
         element={
           <Protected>
             <RoadmapPage />

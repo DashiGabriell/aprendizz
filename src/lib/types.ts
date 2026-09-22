@@ -104,3 +104,16 @@ export type CurriculumTree = {
     lessons: LessonWithProgress[]
   }>
 }
+
+/** Course card for the LMS home catalog (backed by `aprendizz_subjects`). */
+export type CourseSummary = {
+  id: string
+  slug: string
+  title: string
+  description_md: string
+  sort_order: number
+  lessonCount: number
+  completedCount: number
+  continueSlug: string | null
+  progressLabel: 'Não iniciado' | 'Em andamento' | 'Concluído'
+}

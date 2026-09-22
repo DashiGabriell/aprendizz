@@ -4,10 +4,11 @@ import { Link } from 'react-router-dom'
 type Props = {
   lessonTitle: string
   nextLesson: { slug: string; title: string } | null
+  courseSlug?: string
   onClose: () => void
 }
 
-export function LessonCompleteModal({ lessonTitle, nextLesson, onClose }: Props) {
+export function LessonCompleteModal({ lessonTitle, nextLesson, courseSlug, onClose }: Props) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -20,6 +21,8 @@ export function LessonCompleteModal({ lessonTitle, nextLesson, onClose }: Props)
       document.body.style.overflow = prev
     }
   }, [onClose])
+
+  const courseHome = courseSlug ? `/courses/${courseSlug}` : '/'
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -36,7 +39,9 @@ export function LessonCompleteModal({ lessonTitle, nextLesson, onClose }: Props)
         </h2>
         <p className="mb-6 text-[var(--muted)]">
           Você finalizou <strong className="text-[var(--heading)]">{lessonTitle}</strong>
-          {nextLesson ? '. A próxima aula já está liberada.' : '. Você concluiu todas as aulas do roadmap.'}
+          {nextLesson
+            ? '. A próxima aula já está liberada.'
+            : '. Você concluiu todas as unidades deste curso.'}
         </p>
         <div className="flex flex-wrap gap-3">
           {nextLesson ? (
@@ -44,8 +49,8 @@ export function LessonCompleteModal({ lessonTitle, nextLesson, onClose }: Props)
               Próxima aula
             </Link>
           ) : (
-            <Link to="/" className="btn-primary no-underline">
-              Voltar ao roadmap
+            <Link to={courseHome} className="btn-primary no-underline">
+              Voltar ao curso
             </Link>
           )}
           <button type="button" className="btn-ghost" onClick={onClose}>

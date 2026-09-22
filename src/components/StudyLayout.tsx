@@ -44,7 +44,7 @@ export function StudyLayout({ children, activeSlug }: Props) {
           className="btn-ghost study-sidebar-toggle mb-4 lg:hidden"
           onClick={() => setMobileOpen((v) => !v)}
         >
-          {mobileOpen ? 'Fechar menu' : 'Matéria / Módulos / Aulas'}
+          {mobileOpen ? 'Fechar menu' : 'Curso / Módulos / Aulas'}
         </button>
 
         {mobileOpen ? (

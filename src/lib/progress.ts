@@ -1,4 +1,5 @@
 import type {
+  CourseSummary,
   CurriculumTree,
   Exercise,
   ExerciseSubmission,
@@ -12,6 +13,98 @@ import type {
 import { resolveInitialStatus } from './unlock'
 import { supabase } from './supabase'
 
+export async function listCoursesWithProgress(userId: string): Promise<{
+  data: CourseSummary[]
+  error: string | null
+}> {
+  const { data: subjects, error: subjectError } = await supabase
+    .from('aprendizz_subjects')
+    .select('*')
+    .order('sort_order', { ascending: true })
+
+  if (subjectError) return { data: [], error: subjectError.message }
+  const subjectList = (subjects as Subject[]) ?? []
+  if (subjectList.length === 0) return { data: [], error: 'Nenhum curso cadastrado. Rode o seed.' }
+
+  const { data: modules, error: modulesError } = await supabase
+    .from('aprendizz_modules')
+    .select('id, subject_id')
+
+  if (modulesError) return { data: [], error: modulesError.message }
+
+  const { data: lessons, error: lessonsError } = await supabase
+    .from('aprendizz_lessons')
+    .select('id, module_id, slug, sort_order, unlocked_by_default')
+    .order('sort_order', { ascending: true })
+
+  if (lessonsError) return { data: [], error: lessonsError.message }
+
+  const { data: progress, error: progressError } = await supabase
+    .from('aprendizz_lesson_progress')
+    .select('lesson_id, status')
+    .eq('user_id', userId)
+
+  if (progressError) return { data: [], error: progressError.message }
+
+  const byLesson = new Map(
+    ((progress as Array<{ lesson_id: string; status: ProgressStatus }>) ?? []).map((p) => [
+      p.lesson_id,
+      p.status,
+    ]),
+  )
+  const modulesBySubject = new Map<string, string[]>()
+  for (const mod of (modules as Array<{ id: string; subject_id: string }>) ?? []) {
+    const list = modulesBySubject.get(mod.subject_id) ?? []
+    list.push(mod.id)
+    modulesBySubject.set(mod.subject_id, list)
+  }
+
+  const lessonList =
+    (lessons as Array<{
+      id: string
+      module_id: string
+      slug: string
+      sort_order: number
+      unlocked_by_default: boolean
+    }>) ?? []
+
+  const courses: CourseSummary[] = subjectList.map((subject) => {
+    const moduleIds = new Set(modulesBySubject.get(subject.id) ?? [])
+    const courseLessons = lessonList.filter((l) => moduleIds.has(l.module_id))
+    const withStatus = courseLessons.map((lesson) => ({
+      ...lesson,
+      status: (byLesson.get(lesson.id) ??
+        resolveInitialStatus(lesson.sort_order, lesson.unlocked_by_default)) as ProgressStatus,
+    }))
+    const completedCount = withStatus.filter((l) => l.status === 'completed').length
+    const continueLesson =
+      withStatus.find((l) => l.status === 'available') ??
+      withStatus.find((l) => l.status === 'completed') ??
+      null
+
+    let progressLabel: CourseSummary['progressLabel'] = 'Não iniciado'
+    if (withStatus.length > 0 && completedCount === withStatus.length) {
+      progressLabel = 'Concluído'
+    } else if (completedCount > 0) {
+      progressLabel = 'Em andamento'
+    }
+
+    return {
+      id: subject.id,
+      slug: subject.slug,
+      title: subject.title,
+      description_md: subject.description_md,
+      sort_order: subject.sort_order,
+      lessonCount: withStatus.length,
+      completedCount,
+      continueSlug: continueLesson?.slug ?? null,
+      progressLabel,
+    }
+  })
+
+  return { data: courses, error: null }
+}
+
 export async function listLessonsWithProgress(userId: string): Promise<{
   data: LessonWithProgress[]
   error: string | null
@@ -24,19 +117,30 @@ export async function listLessonsWithProgress(userId: string): Promise<{
   }
 }
 
-export async function loadCurriculumTree(userId: string): Promise<{
+export async function loadCurriculumTree(
+  userId: string,
+  courseSlug?: string,
+): Promise<{
   data: CurriculumTree | null
   error: string | null
 }> {
-  const { data: subjects, error: subjectError } = await supabase
-    .from('aprendizz_subjects')
-    .select('*')
-    .order('sort_order', { ascending: true })
-    .limit(1)
+  const subjectRes = courseSlug
+    ? await supabase.from('aprendizz_subjects').select('*').eq('slug', courseSlug).maybeSingle()
+    : await supabase
+        .from('aprendizz_subjects')
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle()
 
-  if (subjectError) return { data: null, error: subjectError.message }
-  const subject = (subjects?.[0] as Subject | undefined) ?? null
-  if (!subject) return { data: null, error: 'Nenhuma matéria cadastrada. Rode o seed.' }
+  if (subjectRes.error) return { data: null, error: subjectRes.error.message }
+  const subject = subjectRes.data as Subject | null
+  if (!subject) {
+    return {
+      data: null,
+      error: courseSlug ? `Curso "${courseSlug}" não encontrado.` : 'Nenhum curso cadastrado. Rode o seed.',
+    }
+  }
 
   const { data: modules, error: modulesError } = await supabase
     .from('aprendizz_modules')
@@ -46,12 +150,20 @@ export async function loadCurriculumTree(userId: string): Promise<{
 
   if (modulesError) return { data: null, error: modulesError.message }
 
-  const { data: lessons, error: lessonsError } = await supabase
-    .from('aprendizz_lessons')
-    .select('*')
-    .order('sort_order', { ascending: true })
+  const moduleList = (modules as Module[]) ?? []
+  const moduleIds = moduleList.map((m) => m.id)
 
-  if (lessonsError) return { data: null, error: lessonsError.message }
+  let lessonList: Lesson[] = []
+  if (moduleIds.length > 0) {
+    const { data: lessons, error: lessonsError } = await supabase
+      .from('aprendizz_lessons')
+      .select('*')
+      .in('module_id', moduleIds)
+      .order('sort_order', { ascending: true })
+
+    if (lessonsError) return { data: null, error: lessonsError.message }
+    lessonList = (lessons as Lesson[]) ?? []
+  }
 
   const { data: progress, error: progressError } = await supabase
     .from('aprendizz_lesson_progress')
@@ -61,8 +173,6 @@ export async function loadCurriculumTree(userId: string): Promise<{
   if (progressError) return { data: null, error: progressError.message }
 
   const byLesson = new Map((progress as LessonProgress[]).map((p) => [p.lesson_id, p.status]))
-  const moduleList = (modules as Module[]) ?? []
-  const lessonList = (lessons as Lesson[]) ?? []
 
   return {
     data: {

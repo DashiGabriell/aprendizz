@@ -183,7 +183,7 @@ export function ExercisePanel({ lesson, exercise, submission, onSave, onMaybeCom
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="exercise-tabs">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -322,10 +322,10 @@ export function ExercisePanel({ lesson, exercise, submission, onSave, onMaybeCom
           ) : null}
 
           <p className="text-sm text-[var(--muted)] whitespace-pre-wrap">{exercise.code_prompt}</p>
-          <div className="overflow-hidden border border-[var(--line)]" style={{ minHeight: 280 }}>
+          <div className="code-editor-shell">
             <Suspense fallback={<p className="p-4 text-sm text-[var(--muted)]">Carregando editor…</p>}>
               <Editor
-                height="280px"
+                height="100%"
                 defaultLanguage="typescript"
                 theme={theme === 'dark' ? 'vs-dark' : 'light'}
                 value={code}
@@ -338,6 +338,8 @@ export function ExercisePanel({ lesson, exercise, submission, onSave, onMaybeCom
                   minimap: { enabled: false },
                   fontSize: 14,
                   scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  wordWrap: 'on',
                 }}
               />
             </Suspense>

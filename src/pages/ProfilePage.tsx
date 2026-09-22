@@ -161,7 +161,7 @@ export function ProfilePage() {
         <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">Perfil do aluno</p>
-            <h1 className="mb-2 text-4xl sm:text-5xl">Seu desempenho</h1>
+            <h1 className="page-title mb-2">Seu desempenho</h1>
             <p className="max-w-2xl text-[var(--muted)]">
               Acompanhe o que já estudou, como foi em cada exercício e quanto falta para concluir o
               roadmap Backend.
@@ -394,8 +394,9 @@ export function ProfilePage() {
               </div>
             </section>
 
-            <section className="block-panel overflow-x-auto">
+            <section className="block-panel">
               <h2 className="mb-4 text-xl">Desempenho por aula</h2>
+              <div className="profile-table-wrap">
               <table className="w-full min-w-[640px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-[var(--line)] text-xs uppercase tracking-wide text-[var(--muted)]">
@@ -438,6 +439,7 @@ export function ProfilePage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </section>
 
             <section className="block-panel">

@@ -10,7 +10,7 @@ Esta matéria transforma o que você já sabe (TypeScript, web, APIs) em **base 
 
 ### Como o caminho funciona
 
-1. **Matéria** — o tema amplo (esta página)
+1. **Curso** — o programa completo (esta página)
 2. **Módulo** — um bloco coerente de estudo
 3. **Aula** — explicação completa + exercícios de fixação
 4. **Avaliação** — 10 questões cobrindo o módulo inteiro

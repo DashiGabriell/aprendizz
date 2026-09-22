@@ -27,6 +27,7 @@ export function LessonPage() {
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [moduleTitle, setModuleTitle] = useState('')
   const [subjectTitle, setSubjectTitle] = useState('')
+  const [courseSlug, setCourseSlug] = useState('')
   const [status, setStatus] = useState<ProgressStatus>('locked')
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [submission, setSubmission] = useState<ExerciseSubmission | null>(null)
@@ -59,8 +60,9 @@ export function LessonPage() {
       const modRes = await getModuleForLesson(lessonRes.data.module_id)
       if (modRes.data) {
         setModuleTitle(String(modRes.data.title ?? ''))
-        const subject = modRes.data.aprendizz_subjects as { title?: string } | null
+        const subject = modRes.data.aprendizz_subjects as { title?: string; slug?: string } | null
         setSubjectTitle(subject?.title ?? '')
+        setCourseSlug(subject?.slug ?? '')
       }
     }
 
@@ -134,6 +136,7 @@ export function LessonPage() {
   return (
     <PlayerLayout
       activeSlug={slug}
+      courseSlug={courseSlug}
       subjectTitle={subjectTitle}
       moduleTitle={moduleTitle}
       currentStatus={status}
@@ -180,6 +183,7 @@ export function LessonPage() {
         <LessonCompleteModal
           lessonTitle={lesson.title}
           nextLesson={nextLesson}
+          courseSlug={courseSlug}
           onClose={() => setCompleteOpen(false)}
         />
       ) : null}

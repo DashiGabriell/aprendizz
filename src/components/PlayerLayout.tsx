@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { ensureProfile, type StudentProfile } from '../lib/profile'
 import { ensureProgressRows, loadCurriculumTree } from '../lib/progress'
 import type { CurriculumTree, ProgressStatus } from '../lib/types'
+import { BrandLogo } from './BrandLogo'
 import { ProfileAvatarLink } from './ProfileAvatar'
 import { PlayerAside } from './PlayerAside'
 import { PlayerFooter, type NeighborLesson } from './PlayerFooter'
@@ -12,6 +12,7 @@ import { PlayerFooter, type NeighborLesson } from './PlayerFooter'
 type Props = {
   children: React.ReactNode
   activeSlug?: string
+  courseSlug?: string
   subjectTitle?: string
   moduleTitle?: string
   currentStatus: ProgressStatus
@@ -23,6 +24,7 @@ type Props = {
 export function PlayerLayout({
   children,
   activeSlug,
+  courseSlug,
   subjectTitle,
   moduleTitle,
   currentStatus,
@@ -59,7 +61,7 @@ export function PlayerLayout({
         if (!cancelled) setError(ensured.error)
         return
       }
-      const result = await loadCurriculumTree(user.id)
+      const result = await loadCurriculumTree(user.id, courseSlug || undefined)
       if (!cancelled) {
         if (result.error) setError(result.error)
         else setTree(result.data)
@@ -68,7 +70,7 @@ export function PlayerLayout({
     return () => {
       cancelled = true
     }
-  }, [user, activeSlug])
+  }, [user, activeSlug, courseSlug])
 
   const flat = useMemo(() => tree?.modules.flatMap((m) => m.lessons) ?? [], [tree])
   const completed = flat.filter((l) => l.status === 'completed').length
@@ -83,9 +85,7 @@ export function PlayerLayout({
       <div className="player-container">
         <header className="player-header" role="banner">
           <div className="player-header-left">
-            <Link to="/" className="player-brand no-underline">
-              Aprendizz
-            </Link>
+            <BrandLogo to="/" size="sm" className="player-brand" />
             <span className="player-header-sub">Player de aulas</span>
           </div>
 
@@ -158,6 +158,7 @@ export function PlayerLayout({
         </div>
 
         <PlayerFooter
+          courseSlug={courseSlug || tree?.subject.slug}
           previous={previous}
           next={next}
           currentStatus={currentStatus}
