@@ -3,38 +3,52 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { Layout } from '../components/Layout'
 import { Markdown } from '../components/Markdown'
 import { useAuth } from '../hooks/useAuth'
-import { ensureProgressRows, loadCurriculumTree } from '../lib/progress'
+import { ensureProgressRows, loadCurriculumTree, peekCurriculumTree } from '../lib/progress'
 import type { CurriculumTree } from '../lib/types'
 
 export function RoadmapPage() {
   const { courseSlug = '' } = useParams()
   const { user } = useAuth()
-  const [tree, setTree] = useState<CurriculumTree | null>(null)
+  const userId = user?.id
+  const cached = userId && courseSlug ? peekCurriculumTree(userId, courseSlug) : null
+  const [tree, setTree] = useState<CurriculumTree | null>(() => cached)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !cached)
 
   useEffect(() => {
-    if (!user || !courseSlug) return
+    if (!userId || !courseSlug) return
     let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      const ensured = await ensureProgressRows(user.id)
+
+    async function load(showSpinner: boolean) {
+      const warm = peekCurriculumTree(userId!, courseSlug)
+      if (warm) {
+        setTree(warm)
+        setLoading(false)
+      } else if (showSpinner) {
+        setLoading(true)
+      }
+      const ensured = await ensureProgressRows(userId!)
       if (ensured.error) {
         if (!cancelled) setError(ensured.error)
         setLoading(false)
         return
       }
-      const result = await loadCurriculumTree(user.id, courseSlug)
+      const result = await loadCurriculumTree(userId!, courseSlug)
       if (!cancelled) {
         if (result.error) setError(result.error)
         else setTree(result.data)
         setLoading(false)
       }
-    })()
+    }
+
+    void load(true)
+    const onProgress = () => void load(false)
+    window.addEventListener('aprendizz-progress-updated', onProgress)
     return () => {
       cancelled = true
+      window.removeEventListener('aprendizz-progress-updated', onProgress)
     }
-  }, [user, courseSlug])
+  }, [userId, courseSlug])
 
   const flat = useMemo(() => tree?.modules.flatMap((m) => m.lessons) ?? [], [tree])
   const completed = flat.filter((l) => l.status === 'completed').length

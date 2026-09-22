@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { ensureProfile, type StudentProfile } from '../lib/profile'
-import { ensureProgressRows, loadCurriculumTree } from '../lib/progress'
+import { ensureProgressRows, loadCurriculumTree, peekCurriculumTree } from '../lib/progress'
 import type { CurriculumTree, ProgressStatus } from '../lib/types'
 import { BrandLogo } from './BrandLogo'
 import { ProfileAvatarLink } from './ProfileAvatar'
@@ -34,7 +34,9 @@ export function PlayerLayout({
 }: Props) {
   const { user, signOut } = useAuth()
   const { theme, toggle } = useTheme()
-  const [tree, setTree] = useState<CurriculumTree | null>(null)
+  const userId = user?.id
+  const cachedTree = userId ? peekCurriculumTree(userId, courseSlug || undefined) : null
+  const [tree, setTree] = useState<CurriculumTree | null>(() => cachedTree)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [asideOpen, setAsideOpen] = useState(false)
@@ -50,27 +52,35 @@ export function PlayerLayout({
   }, [])
 
   useEffect(() => {
-    if (!user) return
+    if (!user || !userId) return
     let cancelled = false
-    ensureProfile(user).then((res) => {
-      if (!cancelled && res.data) setProfile(res.data)
-    })
-    ;(async () => {
-      const ensured = await ensureProgressRows(user.id)
+
+    async function load() {
+      const warm = peekCurriculumTree(userId!, courseSlug || undefined)
+      if (warm) setTree(warm)
+      const ensured = await ensureProgressRows(userId!)
       if (ensured.error) {
         if (!cancelled) setError(ensured.error)
         return
       }
-      const result = await loadCurriculumTree(user.id, courseSlug || undefined)
+      const result = await loadCurriculumTree(userId!, courseSlug || undefined)
       if (!cancelled) {
         if (result.error) setError(result.error)
         else setTree(result.data)
       }
-    })()
+    }
+
+    ensureProfile(user).then((res) => {
+      if (!cancelled && res.data) setProfile(res.data)
+    })
+    void load()
+    const onProgress = () => void load()
+    window.addEventListener('aprendizz-progress-updated', onProgress)
     return () => {
       cancelled = true
+      window.removeEventListener('aprendizz-progress-updated', onProgress)
     }
-  }, [user, activeSlug, courseSlug])
+  }, [user, userId, courseSlug])
 
   const flat = useMemo(() => tree?.modules.flatMap((m) => m.lessons) ?? [], [tree])
   const completed = flat.filter((l) => l.status === 'completed').length

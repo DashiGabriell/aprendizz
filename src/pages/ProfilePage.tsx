@@ -55,15 +55,16 @@ export function ProfilePage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
 
   const email = user?.email ?? ''
+  const userId = user?.id
 
   useEffect(() => {
-    if (!user) return
+    if (!user || !userId) return
     let cancelled = false
 
     ;(async () => {
       setLoading(true)
       setError(null)
-      await ensureProgressRows(user.id)
+      await ensureProgressRows(userId)
 
       const profileRes = await ensureProfile(user)
       if (cancelled) return
@@ -77,7 +78,7 @@ export function ProfilePage() {
       setDisplayName(profileRes.data.display_name)
       setBio(profileRes.data.bio)
 
-      const dash = await loadPerformanceDashboard(user.id)
+      const dash = await loadPerformanceDashboard(userId)
       if (cancelled) return
       if (dash.error) {
         setError(dash.error)
@@ -94,7 +95,7 @@ export function ProfilePage() {
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [user, userId])
 
   const studied = useMemo(
     () => lessons.filter((l) => l.status === 'completed' || l.partsPassed > 0),

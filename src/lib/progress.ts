@@ -12,11 +12,31 @@ import type {
 } from './types'
 import { resolveInitialStatus } from './unlock'
 import { supabase } from './supabase'
+import {
+  cacheGet,
+  cacheGetOrFetch,
+  cacheKeys,
+  cacheSet,
+  invalidateUserProgressViews,
+} from './queryCache'
 
-export async function listCoursesWithProgress(userId: string): Promise<{
-  data: CourseSummary[]
-  error: string | null
-}> {
+type Result<T> = { data: T; error: string | null }
+
+const okResult = <T extends { error: string | null }>(value: T) => !value.error
+
+/** Sync peek for instant UI when data was already loaded this session. */
+export function peekCourses(userId: string): CourseSummary[] | null {
+  const hit = cacheGet<Result<CourseSummary[]>>(cacheKeys.courses(userId))
+  return hit && !hit.error ? hit.data : null
+}
+
+export function peekCurriculumTree(userId: string, courseSlug?: string): CurriculumTree | null {
+  const key = courseSlug ? cacheKeys.tree(userId, courseSlug) : cacheKeys.treeDefault(userId)
+  const hit = cacheGet<{ data: CurriculumTree | null; error: string | null }>(key)
+  return hit && !hit.error ? hit.data : null
+}
+
+async function fetchCoursesWithProgress(userId: string): Promise<Result<CourseSummary[]>> {
   const { data: subjects, error: subjectError } = await supabase
     .from('aprendizz_subjects')
     .select('*')
@@ -105,6 +125,12 @@ export async function listCoursesWithProgress(userId: string): Promise<{
   return { data: courses, error: null }
 }
 
+export async function listCoursesWithProgress(userId: string): Promise<Result<CourseSummary[]>> {
+  return cacheGetOrFetch(cacheKeys.courses(userId), () => fetchCoursesWithProgress(userId), {
+    shouldCache: okResult,
+  })
+}
+
 export async function listLessonsWithProgress(userId: string): Promise<{
   data: LessonWithProgress[]
   error: string | null
@@ -117,13 +143,10 @@ export async function listLessonsWithProgress(userId: string): Promise<{
   }
 }
 
-export async function loadCurriculumTree(
+async function fetchCurriculumTree(
   userId: string,
   courseSlug?: string,
-): Promise<{
-  data: CurriculumTree | null
-  error: string | null
-}> {
+): Promise<{ data: CurriculumTree | null; error: string | null }> {
   const subjectRes = courseSlug
     ? await supabase.from('aprendizz_subjects').select('*').eq('slug', courseSlug).maybeSingle()
     : await supabase
@@ -196,40 +219,63 @@ export async function loadCurriculumTree(
   }
 }
 
+export async function loadCurriculumTree(
+  userId: string,
+  courseSlug?: string,
+): Promise<{
+  data: CurriculumTree | null
+  error: string | null
+}> {
+  const key = courseSlug ? cacheKeys.tree(userId, courseSlug) : cacheKeys.treeDefault(userId)
+  return cacheGetOrFetch(key, () => fetchCurriculumTree(userId, courseSlug), { shouldCache: okResult })
+}
+
 export async function ensureProgressRows(userId: string): Promise<{ error: string | null }> {
-  const { data: lessons, error: lessonsError } = await supabase
-    .from('aprendizz_lessons')
-    .select('id, sort_order, unlocked_by_default')
-    .order('sort_order', { ascending: true })
+  return cacheGetOrFetch(
+    cacheKeys.progressEnsured(userId),
+    async () => {
+      const { data: lessons, error: lessonsError } = await supabase
+        .from('aprendizz_lessons')
+        .select('id, sort_order, unlocked_by_default')
+        .order('sort_order', { ascending: true })
 
-  if (lessonsError) return { error: lessonsError.message }
-  if (!lessons?.length) return { error: 'Nenhuma aula encontrada. Aplique o seed.' }
+      if (lessonsError) return { error: lessonsError.message }
+      if (!lessons?.length) return { error: 'Nenhuma aula encontrada. Aplique o seed.' }
 
-  const { data: existing, error: existingError } = await supabase
-    .from('aprendizz_lesson_progress')
-    .select('lesson_id')
-    .eq('user_id', userId)
+      const { data: existing, error: existingError } = await supabase
+        .from('aprendizz_lesson_progress')
+        .select('lesson_id')
+        .eq('user_id', userId)
 
-  if (existingError) return { error: existingError.message }
+      if (existingError) return { error: existingError.message }
 
-  const have = new Set((existing ?? []).map((r) => r.lesson_id as string))
-  const missing = lessons
-    .filter((l) => !have.has(l.id as string))
-    .map((l) => ({
-      user_id: userId,
-      lesson_id: l.id,
-      status: resolveInitialStatus(l.sort_order as number, l.unlocked_by_default as boolean),
-    }))
+      const have = new Set((existing ?? []).map((r) => r.lesson_id as string))
+      const missing = lessons
+        .filter((l) => !have.has(l.id as string))
+        .map((l) => ({
+          user_id: userId,
+          lesson_id: l.id,
+          status: resolveInitialStatus(l.sort_order as number, l.unlocked_by_default as boolean),
+        }))
 
-  if (missing.length === 0) return { error: null }
+      if (missing.length === 0) return { error: null }
 
-  const { error } = await supabase.from('aprendizz_lesson_progress').insert(missing)
-  return { error: error?.message ?? null }
+      const { error } = await supabase.from('aprendizz_lesson_progress').insert(missing)
+      return { error: error?.message ?? null }
+    },
+    { shouldCache: okResult },
+  )
 }
 
 export async function getLessonBySlug(slug: string) {
-  const { data, error } = await supabase.from('aprendizz_lessons').select('*').eq('slug', slug).maybeSingle()
-  return { data: data as Lesson | null, error: error?.message ?? null }
+  return cacheGetOrFetch(
+    cacheKeys.lesson(slug),
+    async () => {
+      const { data, error } = await supabase.from('aprendizz_lessons').select('*').eq('slug', slug).maybeSingle()
+      return { data: data as Lesson | null, error: error?.message ?? null }
+    },
+    { shouldCache: okResult },
+  )
 }
 
 export async function getNeighborLessons(sortOrder: number): Promise<{
@@ -237,56 +283,80 @@ export async function getNeighborLessons(sortOrder: number): Promise<{
   next: { slug: string; title: string; sort_order: number; kind?: string } | null
   error: string | null
 }> {
-  const [prevRes, nextRes] = await Promise.all([
-    supabase
-      .from('aprendizz_lessons')
-      .select('slug, title, sort_order, kind')
-      .eq('sort_order', sortOrder - 1)
-      .maybeSingle(),
-    supabase
-      .from('aprendizz_lessons')
-      .select('slug, title, sort_order, kind')
-      .eq('sort_order', sortOrder + 1)
-      .maybeSingle(),
-  ])
+  return cacheGetOrFetch(
+    cacheKeys.neighbors(sortOrder),
+    async () => {
+      const [prevRes, nextRes] = await Promise.all([
+        supabase
+          .from('aprendizz_lessons')
+          .select('slug, title, sort_order, kind')
+          .eq('sort_order', sortOrder - 1)
+          .maybeSingle(),
+        supabase
+          .from('aprendizz_lessons')
+          .select('slug, title, sort_order, kind')
+          .eq('sort_order', sortOrder + 1)
+          .maybeSingle(),
+      ])
 
-  if (prevRes.error) return { previous: null, next: null, error: prevRes.error.message }
-  if (nextRes.error) return { previous: null, next: null, error: nextRes.error.message }
+      if (prevRes.error) return { previous: null, next: null, error: prevRes.error.message }
+      if (nextRes.error) return { previous: null, next: null, error: nextRes.error.message }
 
-  return {
-    previous: prevRes.data as { slug: string; title: string; sort_order: number; kind?: string } | null,
-    next: nextRes.data as { slug: string; title: string; sort_order: number; kind?: string } | null,
-    error: null,
-  }
+      return {
+        previous: prevRes.data as { slug: string; title: string; sort_order: number; kind?: string } | null,
+        next: nextRes.data as { slug: string; title: string; sort_order: number; kind?: string } | null,
+        error: null,
+      }
+    },
+    { shouldCache: okResult },
+  )
 }
 
 export async function getProgressForLesson(userId: string, lessonId: string) {
-  const { data, error } = await supabase
-    .from('aprendizz_lesson_progress')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('lesson_id', lessonId)
-    .maybeSingle()
-  return { data: data as LessonProgress | null, error: error?.message ?? null }
+  return cacheGetOrFetch(
+    cacheKeys.lessonProgress(userId, lessonId),
+    async () => {
+      const { data, error } = await supabase
+        .from('aprendizz_lesson_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle()
+      return { data: data as LessonProgress | null, error: error?.message ?? null }
+    },
+    { shouldCache: okResult },
+  )
 }
 
 export async function getExerciseForLesson(lessonId: string) {
-  const { data, error } = await supabase
-    .from('aprendizz_exercises')
-    .select('*')
-    .eq('lesson_id', lessonId)
-    .maybeSingle()
-  return { data: data as Exercise | null, error: error?.message ?? null }
+  return cacheGetOrFetch(
+    cacheKeys.exercise(lessonId),
+    async () => {
+      const { data, error } = await supabase
+        .from('aprendizz_exercises')
+        .select('*')
+        .eq('lesson_id', lessonId)
+        .maybeSingle()
+      return { data: data as Exercise | null, error: error?.message ?? null }
+    },
+    { shouldCache: okResult },
+  )
 }
 
 export async function getSubmission(userId: string, exerciseId: string) {
-  const { data, error } = await supabase
-    .from('aprendizz_exercise_submissions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('exercise_id', exerciseId)
-    .maybeSingle()
-  return { data: data as ExerciseSubmission | null, error: error?.message ?? null }
+  return cacheGetOrFetch(
+    cacheKeys.submission(userId, exerciseId),
+    async () => {
+      const { data, error } = await supabase
+        .from('aprendizz_exercise_submissions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('exercise_id', exerciseId)
+        .maybeSingle()
+      return { data: data as ExerciseSubmission | null, error: error?.message ?? null }
+    },
+    { shouldCache: okResult },
+  )
 }
 
 export async function upsertSubmission(args: {
@@ -316,7 +386,11 @@ export async function upsertSubmission(args: {
     .select('*')
     .single()
 
-  return { data: data as ExerciseSubmission | null, error: error?.message ?? null }
+  const result = { data: data as ExerciseSubmission | null, error: error?.message ?? null }
+  if (result.data && !result.error) {
+    cacheSet(cacheKeys.submission(args.userId, args.exerciseId), result)
+  }
+  return result
 }
 
 export async function markLessonCompletedAndUnlockNext(userId: string, lesson: Lesson) {
@@ -335,8 +409,14 @@ export async function markLessonCompletedAndUnlockNext(userId: string, lesson: L
     .eq('sort_order', lesson.sort_order + 1)
     .maybeSingle()
 
-  if (nextError) return { error: nextError.message, nextLesson: null }
-  if (!nextLesson) return { error: null, nextLesson: null }
+  if (nextError) {
+    invalidateUserProgressViews(userId)
+    return { error: nextError.message, nextLesson: null }
+  }
+  if (!nextLesson) {
+    invalidateUserProgressViews(userId)
+    return { error: null, nextLesson: null }
+  }
 
   const { error: unlockError } = await supabase
     .from('aprendizz_lesson_progress')
@@ -344,6 +424,8 @@ export async function markLessonCompletedAndUnlockNext(userId: string, lesson: L
     .eq('user_id', userId)
     .eq('lesson_id', nextLesson.id)
     .eq('status', 'locked')
+
+  invalidateUserProgressViews(userId)
 
   return {
     error: unlockError?.message ?? null,
@@ -356,10 +438,16 @@ export async function markLessonCompletedAndUnlockNext(userId: string, lesson: L
 }
 
 export async function getModuleForLesson(moduleId: string) {
-  const { data, error } = await supabase
-    .from('aprendizz_modules')
-    .select('*, aprendizz_subjects(*)')
-    .eq('id', moduleId)
-    .maybeSingle()
-  return { data, error: error?.message ?? null }
+  return cacheGetOrFetch(
+    cacheKeys.module(moduleId),
+    async () => {
+      const { data, error } = await supabase
+        .from('aprendizz_modules')
+        .select('*, aprendizz_subjects(*)')
+        .eq('id', moduleId)
+        .maybeSingle()
+      return { data, error: error?.message ?? null }
+    },
+    { shouldCache: okResult },
+  )
 }

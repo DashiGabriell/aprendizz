@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { cacheClear } from '../lib/queryCache'
 
 type AuthContextValue = {
   user: User | null
@@ -32,7 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      // Token refresh on tab focus must not remount the app or refetch curriculum.
+      if (event === 'TOKEN_REFRESHED') return
+
+      if (event === 'SIGNED_OUT') cacheClear()
+
+      if (!mounted) return
       setSession(next)
       setLoading(false)
     })
@@ -49,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    cacheClear()
     await supabase.auth.signOut()
   }, [])
 

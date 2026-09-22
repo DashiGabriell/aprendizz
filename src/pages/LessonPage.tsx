@@ -41,8 +41,10 @@ export function LessonPage() {
   }>({ previous: null, next: null })
   const [loading, setLoading] = useState(true)
 
+  const userId = user?.id
+
   const reload = useCallback(async () => {
-    if (!user || !slug) return
+    if (!userId || !slug) return
     setLoading(true)
     setCompleteOpen(false)
     setBlockedNextOpen(false)
@@ -66,7 +68,7 @@ export function LessonPage() {
       }
     }
 
-    const progressRes = await getProgressForLesson(user.id, lessonRes.data.id)
+    const progressRes = await getProgressForLesson(userId, lessonRes.data.id)
     setStatus(progressRes.data?.status ?? 'locked')
 
     const neighborsRes = await getNeighborLessons(lessonRes.data.sort_order)
@@ -81,10 +83,10 @@ export function LessonPage() {
     }
     setExercise(exerciseRes.data)
 
-    const subRes = await getSubmission(user.id, exerciseRes.data.id)
+    const subRes = await getSubmission(userId, exerciseRes.data.id)
     setSubmission(subRes.data)
     setLoading(false)
-  }, [user, slug])
+  }, [userId, slug])
 
   useEffect(() => {
     void reload()

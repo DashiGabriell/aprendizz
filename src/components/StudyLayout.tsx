@@ -12,20 +12,21 @@ type Props = {
 
 export function StudyLayout({ children, activeSlug }: Props) {
   const { user } = useAuth()
+  const userId = user?.id
   const [tree, setTree] = useState<CurriculumTree | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    if (!user) return
+    if (!userId) return
     let cancelled = false
     ;(async () => {
-      const ensured = await ensureProgressRows(user.id)
+      const ensured = await ensureProgressRows(userId)
       if (ensured.error) {
         if (!cancelled) setError(ensured.error)
         return
       }
-      const result = await loadCurriculumTree(user.id)
+      const result = await loadCurriculumTree(userId)
       if (!cancelled) {
         if (result.error) setError(result.error)
         else setTree(result.data)
@@ -34,7 +35,7 @@ export function StudyLayout({ children, activeSlug }: Props) {
     return () => {
       cancelled = true
     }
-  }, [user, activeSlug])
+  }, [userId])
 
   return (
     <Layout>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import { BrandLogo } from './BrandLogo'
@@ -9,11 +9,12 @@ import { ensureProfile, type StudentProfile } from '../lib/profile'
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
   const { theme, toggle } = useTheme()
-  const location = useLocation()
   const [profile, setProfile] = useState<StudentProfile | null>(null)
 
+  const userId = user?.id
+
   useEffect(() => {
-    if (!user) {
+    if (!user || !userId) {
       setProfile(null)
       return
     }
@@ -32,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       cancelled = true
       window.removeEventListener('aprendizz-profile-updated', onUpdated)
     }
-  }, [user, location.pathname])
+  }, [user, userId])
 
   const avatarName = profile?.display_name || user?.email || 'Aluno'
 

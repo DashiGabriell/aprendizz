@@ -10,48 +10,54 @@ import {
 } from './profileStats'
 import type { ExerciseSubmission, Lesson, LessonProgress, ProgressStatus } from './types'
 import { resolveInitialStatus } from './unlock'
+import { cacheGetOrFetch, cacheKeys, cacheSet } from './queryCache'
 
 export type { StudentProfile, LessonPerformance, ProfileStats, ActivityEvent }
 
 export async function ensureProfile(user: User): Promise<{ data: StudentProfile | null; error: string | null }> {
-  const { data: existing, error: readError } = await supabase
-    .from('aprendizz_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  return cacheGetOrFetch(
+    cacheKeys.profile(user.id),
+    async () => {
+      const { data: existing, error: readError } = await supabase
+        .from('aprendizz_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-  if (readError) return { data: null, error: readError.message }
-  if (existing) return { data: existing as StudentProfile, error: null }
+      if (readError) return { data: null, error: readError.message }
+      if (existing) return { data: existing as StudentProfile, error: null }
 
-  const meta = user.user_metadata ?? {}
-  const displayName =
-    (typeof meta.full_name === 'string' && meta.full_name) ||
-    (typeof meta.name === 'string' && meta.name) ||
-    (user.email?.split('@')[0] ?? 'Aluno')
+      const meta = user.user_metadata ?? {}
+      const displayName =
+        (typeof meta.full_name === 'string' && meta.full_name) ||
+        (typeof meta.name === 'string' && meta.name) ||
+        (user.email?.split('@')[0] ?? 'Aluno')
 
-  const { data: created, error: insertError } = await supabase
-    .from('aprendizz_profiles')
-    .insert({
-      user_id: user.id,
-      display_name: displayName,
-      avatar_url: typeof meta.avatar_url === 'string' ? meta.avatar_url : null,
-      bio: '',
-    })
-    .select('*')
-    .single()
+      const { data: created, error: insertError } = await supabase
+        .from('aprendizz_profiles')
+        .insert({
+          user_id: user.id,
+          display_name: displayName,
+          avatar_url: typeof meta.avatar_url === 'string' ? meta.avatar_url : null,
+          bio: '',
+        })
+        .select('*')
+        .single()
 
-  if (insertError) {
-    // Race: another request created it
-    const { data: again, error: againError } = await supabase
-      .from('aprendizz_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    if (again) return { data: again as StudentProfile, error: null }
-    return { data: null, error: insertError.message || againError?.message || 'Falha ao criar perfil' }
-  }
+      if (insertError) {
+        const { data: again, error: againError } = await supabase
+          .from('aprendizz_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (again) return { data: again as StudentProfile, error: null }
+        return { data: null, error: insertError.message || againError?.message || 'Falha ao criar perfil' }
+      }
 
-  return { data: created as StudentProfile, error: null }
+      return { data: created as StudentProfile, error: null }
+    },
+    { shouldCache: (r) => Boolean(r.data) && !r.error },
+  )
 }
 
 export async function updateProfile(
@@ -65,7 +71,11 @@ export async function updateProfile(
     .select('*')
     .single()
 
-  return { data: data as StudentProfile | null, error: error?.message ?? null }
+  const result = { data: data as StudentProfile | null, error: error?.message ?? null }
+  if (result.data && !result.error) {
+    cacheSet(cacheKeys.profile(userId), result)
+  }
+  return result
 }
 
 export async function uploadAvatar(

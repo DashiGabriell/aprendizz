@@ -2,37 +2,51 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Layout } from '../components/Layout'
 import { useAuth } from '../hooks/useAuth'
-import { ensureProgressRows, listCoursesWithProgress } from '../lib/progress'
+import { ensureProgressRows, listCoursesWithProgress, peekCourses } from '../lib/progress'
 import type { CourseSummary } from '../lib/types'
 
 export function HomePage() {
   const { user } = useAuth()
-  const [courses, setCourses] = useState<CourseSummary[]>([])
+  const userId = user?.id
+  const cached = userId ? peekCourses(userId) : null
+  const [courses, setCourses] = useState<CourseSummary[]>(() => cached ?? [])
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !cached)
 
   useEffect(() => {
-    if (!user) return
+    if (!userId) return
     let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      const ensured = await ensureProgressRows(user.id)
+
+    async function load(showSpinner: boolean) {
+      const warm = peekCourses(userId!)
+      if (warm) {
+        setCourses(warm)
+        setLoading(false)
+      } else if (showSpinner) {
+        setLoading(true)
+      }
+      const ensured = await ensureProgressRows(userId!)
       if (ensured.error) {
         if (!cancelled) setError(ensured.error)
         setLoading(false)
         return
       }
-      const result = await listCoursesWithProgress(user.id)
+      const result = await listCoursesWithProgress(userId!)
       if (!cancelled) {
         if (result.error) setError(result.error)
         else setCourses(result.data)
         setLoading(false)
       }
-    })()
+    }
+
+    void load(true)
+    const onProgress = () => void load(false)
+    window.addEventListener('aprendizz-progress-updated', onProgress)
     return () => {
       cancelled = true
+      window.removeEventListener('aprendizz-progress-updated', onProgress)
     }
-  }, [user])
+  }, [userId])
 
   return (
     <Layout>
