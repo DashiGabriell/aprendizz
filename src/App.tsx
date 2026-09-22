@@ -3,6 +3,7 @@ import { useAuth } from './hooks/useAuth'
 import { LoginPage } from './pages/LoginPage'
 import { RoadmapPage } from './pages/RoadmapPage'
 import { LessonPage } from './pages/LessonPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -32,6 +33,14 @@ export default function App() {
         element={
           <Protected>
             <LessonPage />
+          </Protected>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <Protected>
+            <ProfilePage />
           </Protected>
         }
       />

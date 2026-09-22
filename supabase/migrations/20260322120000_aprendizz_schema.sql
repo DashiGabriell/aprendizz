@@ -49,6 +49,7 @@ create table if not exists public.aprendizz_exercise_submissions (
   mcq_passed boolean not null default false,
   code_passed boolean not null default false,
   free_text_submitted boolean not null default false,
+  free_text_feedback text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, exercise_id)

@@ -36,7 +36,7 @@ describe('unlock', () => {
     expect(resolveInitialStatus(2, false)).toBe('locked')
   })
 
-  it('requires all three exercise flags', () => {
+  it('requires all three exercise flags when code is required', () => {
     expect(
       isLessonComplete({ mcqPassed: true, freeTextSubmitted: true, codePassed: true }),
     ).toBe(true)

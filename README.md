@@ -1,6 +1,6 @@
 # Aprendizz
 
-LMS simples para estudar o plano de Backend (Node.js + TypeScript) da discussão em `ideia.md`, uma aula por vez, com exercício de fixação em três partes: **MCQ**, **texto livre** e **código executável**.
+LMS simples para estudar o plano de Backend (Node.js + TypeScript) da discussão em `ideia.md`, uma aula por vez, com exercício de fixação: **MCQ**, **texto livre (corrigido por IA)** e **código executável** quando a aula ensina programação.
 
 ## Stack
 
@@ -17,6 +17,7 @@ LMS simples para estudar o plano de Backend (Node.js + TypeScript) da discussão
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+API_KEY_OPENROUTER=your-openrouter-key
 ```
 
 Para seed/migrations locais, mantenha também `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_SECRET` e `SUPABASE_TOKEN`.
@@ -38,7 +39,7 @@ npm run seed
 
 1. Acesse `/login` com o usuário do Auth compartilhado
 2. Siga o roadmap — só a primeira aula começa liberada
-3. Em cada aula: estude o markdown e complete MCQ (100%) + texto + testes de código
+3. Em cada aula: estude o markdown e complete MCQ (100%) + texto (IA) + testes de código (se a aula ensinar código)
 4. Ao concluir, a próxima aula destrava
 
 ## Scripts
@@ -70,6 +71,7 @@ O repo já inclui `vercel.json` com:
 |------|--------|
 | `VITE_SUPABASE_URL` | URL do projeto Supabase |
 | `VITE_SUPABASE_ANON_KEY` | anon/public key |
+| `API_KEY_OPENROUTER` | chave OpenRouter (correção de texto) |
 
 7. No Supabase → Authentication → URL Configuration, adicione as URLs da Vercel em **Site URL** e **Redirect URLs** (ex.: `https://aprendizz.vercel.app/**`)
 

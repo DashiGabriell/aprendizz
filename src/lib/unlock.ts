@@ -1,11 +1,18 @@
 import type { ProgressStatus } from './types'
 
-export function isLessonComplete(flags: {
-  mcqPassed: boolean
-  freeTextSubmitted: boolean
-  codePassed: boolean
-}): boolean {
-  return flags.mcqPassed && flags.freeTextSubmitted && flags.codePassed
+export function isLessonComplete(
+  flags: {
+    mcqPassed: boolean
+    freeTextSubmitted: boolean
+    codePassed: boolean
+  },
+  options: { codeRequired?: boolean; freeTextRequired?: boolean } = {},
+): boolean {
+  const codeRequired = options.codeRequired ?? true
+  const freeTextRequired = options.freeTextRequired ?? true
+  const codeOk = codeRequired ? flags.codePassed : true
+  const textOk = freeTextRequired ? flags.freeTextSubmitted : true
+  return flags.mcqPassed && textOk && codeOk
 }
 
 export function nextStatusAfterCompletion(

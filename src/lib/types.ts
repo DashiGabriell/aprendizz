@@ -1,5 +1,7 @@
 export type ProgressStatus = 'locked' | 'available' | 'completed'
 
+export type LessonKind = 'lesson' | 'assessment'
+
 export type McqOption = {
   id: string
   label: string
@@ -14,16 +16,35 @@ export type McqQuestion = {
 
 export type CodeTest = {
   name: string
-  // Expression evaluated in sandbox; must return true
   assert: string
+}
+
+export type Subject = {
+  id: string
+  slug: string
+  title: string
+  description_md: string
+  sort_order: number
+}
+
+export type Module = {
+  id: string
+  subject_id: string
+  slug: string
+  title: string
+  description_md: string
+  sort_order: number
 }
 
 export type Lesson = {
   id: string
+  module_id: string
   slug: string
   sort_order: number
   title: string
+  /** @deprecated use module title via join; kept for display fallback */
   phase: string
+  kind: LessonKind
   objectives: string[]
   content_md: string
   unlocked_by_default: boolean
@@ -58,8 +79,28 @@ export type ExerciseSubmission = {
   mcq_passed: boolean
   code_passed: boolean
   free_text_submitted: boolean
+  free_text_feedback: string
+  created_at?: string
+  updated_at?: string
+}
+
+export type FreeTextGradeResult = {
+  passed: boolean
+  feedback: string
 }
 
 export type LessonWithProgress = Lesson & {
   status: ProgressStatus
+  moduleTitle?: string
+  moduleSlug?: string
+  subjectTitle?: string
+  subjectSlug?: string
+}
+
+export type CurriculumTree = {
+  subject: Subject
+  modules: Array<{
+    module: Module
+    lessons: LessonWithProgress[]
+  }>
 }

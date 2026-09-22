@@ -2,38 +2,38 @@
 
 ## What this is
 
-**Aprendizz** is a simple LMS for studying a Backend employability roadmap (Node.js + TypeScript + PostgreSQL), one lesson at a time, with a mandatory fixation exercise per lesson.
+**Aprendizz** is an LMS for a Backend employability curriculum (Node.js + TypeScript + PostgreSQL), structured as **Matéria → Módulo → Aula**, with a **module assessment** (10 questions) at the end of each module.
 
 ## Glossary
 
 | Term | Meaning |
 |------|---------|
-| Lesson | One ordered study unit from `ideia.md` (strategy, week, cycle, project, or Aula 01) |
-| Exercise | The fixation block for a lesson: MCQ + free-text + runnable code (when applicable) |
-| Progress | Per-user state: `locked` \| `available` \| `completed` |
-| Unlock | Making the next lesson `available` after the current exercise is fully passed |
-| Runner | In-browser TS/JS sandbox that executes student code against exercise tests |
-| Shared project | Existing Supabase project; Aprendizz tables/resources are namespaced |
+| Subject (Matéria) | Top-level course topic (e.g. Backend Empregável) |
+| Module (Módulo) | Ordered group of lessons inside a subject |
+| Lesson (Aula) | Study unit with full content + fixation exercise |
+| Assessment (Avaliação) | End-of-module exam with 10 MCQs covering the module |
+| Exercise | Only on lessons and assessments — never on the Roadmap |
+| Roadmap | Explains the path only (no exercises) |
+| Progress | Per-user: `locked` \| `available` \| `completed` |
+| Unlock | Next unit unlocks after current exercise/assessment is passed |
 
 ## Resource naming
 
-Every Supabase resource created for this app is prefixed with `aprendizz_` (tables, named policies, indexes, functions).
-
-Auth is **inherited** from the shared Supabase project (`auth.users`). No separate `profiles` table in MVP.
+Every Supabase resource is prefixed with `aprendizz_`.
 
 ## Tables
 
-- `aprendizz_lessons`
+- `aprendizz_subjects`
+- `aprendizz_modules`
+- `aprendizz_lessons` (`kind`: `lesson` \| `assessment`)
 - `aprendizz_exercises`
 - `aprendizz_lesson_progress`
 - `aprendizz_exercise_submissions`
+- `aprendizz_profiles`
 
 ## Completion rule
 
-A lesson is `completed` only when:
+- **Lesson**: MCQ 100% + free-text passed (if present) + code tests (if present)
+- **Assessment**: all 10 MCQs correct (no free-text/code required)
 
-1. MCQ is 100% correct
-2. Free-text answer was submitted
-3. Code tests all pass
-
-Then the next lesson by `sort_order` becomes `available`.
+Then the next unit by global `sort_order` becomes `available`.
