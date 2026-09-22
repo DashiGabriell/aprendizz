@@ -7,13 +7,23 @@ import { curriculumData } from './curriculum-data.mjs'
 import { withLessonDiagram } from './lesson-diagrams.mjs'
 
 const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+/** JWT service_role (eyJ…) — required for upsert bypassing RLS. sbp_ is Management API only. */
 const serviceKey =
   process.env.SUPABASE_SERVICE_ROLE_SECRET ||
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.SUPABASE_SECRET_KEY
 
 if (!url || !serviceKey) {
-  console.error('Missing SUPABASE_URL or service role key in env')
+  console.error(
+    'Missing SUPABASE_URL (or VITE_SUPABASE_URL) and a service role key (SUPABASE_SERVICE_ROLE_SECRET).',
+  )
+  process.exit(1)
+}
+
+if (serviceKey.startsWith('sbp_')) {
+  console.error(
+    'SUPABASE_TOKEN (sbp_…) is the Management API token, not a PostgREST key. Use SUPABASE_SERVICE_ROLE_SECRET for seed.',
+  )
   process.exit(1)
 }
 
