@@ -9,12 +9,10 @@ describe('parseGradeTextPayload', () => {
     })
   })
 
-  it('extracts JSON from surrounding text', () => {
-    expect(
-      parseGradeTextPayload('Aqui vai: {"passed":false,"feedback":"Faltou o ponto sobre HTTP."} fim'),
-    ).toEqual({
-      passed: false,
-      feedback: 'Faltou o ponto sobre HTTP.',
+  it('accepts string booleans', () => {
+    expect(parseGradeTextPayload('{"passed":"true","feedback":"Ok"}')).toEqual({
+      passed: true,
+      feedback: 'Ok',
     })
   })
 })

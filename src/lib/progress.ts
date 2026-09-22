@@ -11,7 +11,7 @@ import type {
   Subject,
 } from './types'
 import { resolveInitialStatus } from './unlock'
-import { supabase } from './supabase'
+import { ensureAuthSession, supabase } from './supabase'
 import {
   cacheGet,
   cacheGetOrFetch,
@@ -231,6 +231,11 @@ export async function loadCurriculumTree(
 }
 
 export async function ensureProgressRows(userId: string): Promise<{ error: string | null }> {
+  const auth = await ensureAuthSession()
+  if (!auth.session) {
+    return { error: auth.error ?? 'Sessão expirada. Faça login novamente.' }
+  }
+
   return cacheGetOrFetch(
     cacheKeys.progressEnsured(userId),
     async () => {

@@ -122,6 +122,12 @@ export function ExercisePanel({ lesson, exercise, submission, onSave, onMaybeCom
     if (!freeText.trim()) return
     setBusy(true)
     setTextMsg(null)
+
+    // Persist draft even if AI grading fails, so the student does not lose work.
+    await onSave({
+      free_text_answer: freeText.trim(),
+    })
+
     const grade = await gradeFreeText({
       prompt: exercise.free_text_prompt,
       answer: freeText.trim(),

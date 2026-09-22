@@ -18,7 +18,17 @@ type ApiResponse = {
   json: (body: unknown) => void
 }
 
+function readEnvKey() {
+  return (
+    process.env.API_KEY_OPENROUTER?.trim() ||
+    process.env.OPENROUTER_API_KEY?.trim() ||
+    ''
+  )
+}
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+  res.setHeader('Cache-Control', 'no-store')
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
     return res.status(405).json({ error: 'Method not allowed' })
@@ -30,9 +40,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(400).json({ error: 'prompt, answer e lessonTitle são obrigatórios' })
   }
 
-  const apiKey = process.env.API_KEY_OPENROUTER
+  const apiKey = readEnvKey()
   if (!apiKey) {
-    return res.status(500).json({ error: 'API_KEY_OPENROUTER não configurada no servidor' })
+    return res.status(500).json({
+      error:
+        'API_KEY_OPENROUTER não configurada no servidor. Defina a variável no .env (local) e na Vercel (produção).',
+    })
   }
 
   try {
@@ -48,6 +61,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(200).json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Falha ao corrigir texto'
+    console.error('[grade-text]', message)
     return res.status(502).json({ error: message })
   }
 }
