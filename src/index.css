@@ -1368,8 +1368,47 @@ body.player-mode::after {
   border-radius: 0.85rem;
   font-size: 0.9rem;
   line-height: 1.45;
-  white-space: pre-wrap;
   word-break: break-word;
+}
+
+.lesson-tutor-bubble-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lesson-tutor-md .prose-lesson {
+  font-size: 0.9rem;
+}
+
+.lesson-tutor-md .prose-lesson > :first-child {
+  margin-top: 0;
+}
+
+.lesson-tutor-md .prose-lesson > :last-child {
+  margin-bottom: 0;
+}
+
+.lesson-tutor-md .prose-lesson p,
+.lesson-tutor-md .prose-lesson ul,
+.lesson-tutor-md .prose-lesson ol {
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.lesson-tutor-md .prose-lesson pre {
+  margin: 0.45rem 0;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.lesson-tutor-loading {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .lesson-tutor-bubble.is-assistant {
@@ -1456,5 +1495,61 @@ body.player-mode::after {
   .lesson-tutor-panel {
     animation: none;
   }
+}
+
+/* —— Tutor notebook (profile) —— */
+.tutor-notebook-card {
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  padding: 0.9rem 1rem;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.tutor-notebook-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--orange);
+  border: 1px solid color-mix(in srgb, var(--orange) 35%, var(--line));
+  background: color-mix(in srgb, var(--orange) 10%, transparent);
+}
+
+.tutor-notebook-qa {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tutor-notebook-role {
+  margin: 0 0 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tutor-notebook-md .prose-lesson {
+  font-size: 0.92rem;
+}
+
+.tutor-notebook-md .prose-lesson > :first-child {
+  margin-top: 0;
+}
+
+.tutor-notebook-md .prose-lesson > :last-child {
+  margin-bottom: 0;
+}
+
+.tutor-notebook-md .prose-lesson p,
+.tutor-notebook-md .prose-lesson ul,
+.tutor-notebook-md .prose-lesson ol {
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
 }
 

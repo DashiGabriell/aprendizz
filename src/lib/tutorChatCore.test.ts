@@ -18,6 +18,7 @@ describe('tutorChatCore', () => {
     expect(prompt).toContain('HTTP na prática')
     expect(prompt).toContain('Explicar status codes')
     expect(prompt).toContain('200 OK')
+    expect(prompt).toContain('Joseph')
     expect(prompt.toLowerCase()).toContain('gabarito')
   })
 

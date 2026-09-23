@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Layout } from '../components/Layout'
 import { ProfileAvatar } from '../components/ProfileAvatar'
+import { TutorNotebook } from '../components/TutorNotebook'
 import { useAuth } from '../hooks/useAuth'
 import {
   ensureProfile,
@@ -15,6 +16,7 @@ import {
 } from '../lib/profile'
 import { formatDatePt, formatDateShort } from '../lib/profileStats'
 import { ensureProgressRows } from '../lib/progress'
+import { listTutorNotebook, type TutorNotebookEntry } from '../lib/tutorMessages'
 
 function StatCard({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
@@ -47,6 +49,7 @@ export function ProfilePage() {
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [lessons, setLessons] = useState<LessonPerformance[]>([])
   const [timeline, setTimeline] = useState<ActivityEvent[]>([])
+  const [tutorNotes, setTutorNotes] = useState<TutorNotebookEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -89,6 +92,15 @@ export function ProfilePage() {
       setLessons(dash.lessons)
       setStats(dash.stats)
       setTimeline(dash.timeline)
+
+      const notes = await listTutorNotebook(userId)
+      if (cancelled) return
+      if (notes.error) {
+        setError(notes.error)
+        setLoading(false)
+        return
+      }
+      setTutorNotes(notes.data)
       setLoading(false)
     })()
 
@@ -318,6 +330,8 @@ export function ProfilePage() {
                 <p className="text-sm text-[var(--muted)]">runners com testes OK</p>
               </div>
             </section>
+
+            <TutorNotebook entries={tutorNotes} />
 
             <section className="grid gap-6 lg:grid-cols-2">
               <div className="block-panel">
