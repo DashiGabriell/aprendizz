@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Connect, PreviewServer, ViteDevServer } from 'vite'
 import { gradeFreeTextWithOpenRouter } from './server/gradeTextAgent.ts'
+import { tutorChatWithOpenRouter } from './server/tutorChatAgent.ts'
 
 function readJsonBody(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -99,20 +100,97 @@ function attachGradeTextApi(middlewares: Connect.Server, mode: string) {
   })
 }
 
-function gradeTextApiPlugin(mode: string) {
+function attachTutorChatApi(middlewares: Connect.Server, mode: string) {
+  middlewares.use('/api/tutor-chat', (req, res, next) => {
+    void (async () => {
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 204
+        res.end()
+        return
+      }
+      if (req.method !== 'POST') {
+        sendJson(res, 405, { error: 'Method not allowed' })
+        return
+      }
+
+      try {
+        const body = (await readJsonBody(req)) as {
+          lessonTitle?: string
+          objectives?: string[]
+          contentMd?: string
+          messages?: Array<{ role?: string; content?: string }>
+          question?: string
+        }
+
+        if (!body?.lessonTitle?.trim() || !body?.contentMd?.trim() || !body?.question?.trim()) {
+          sendJson(res, 400, { error: 'lessonTitle, contentMd e question são obrigatórios' })
+          return
+        }
+
+        const apiKey = readOpenRouterKey(mode)
+        if (!apiKey) {
+          sendJson(res, 500, {
+            error:
+              'API_KEY_OPENROUTER não configurada no .env. Reinicie o npm run dev após salvar a chave.',
+          })
+          return
+        }
+
+        const history = Array.isArray(body.messages)
+          ? body.messages
+              .filter(
+                (m) =>
+                  (m.role === 'user' || m.role === 'assistant') &&
+                  typeof m.content === 'string' &&
+                  m.content.trim(),
+              )
+              .map((m) => ({
+                role: m.role as 'user' | 'assistant',
+                content: String(m.content).trim(),
+              }))
+          : []
+
+        const result = await tutorChatWithOpenRouter(
+          {
+            lessonTitle: body.lessonTitle,
+            objectives: Array.isArray(body.objectives) ? body.objectives : [],
+            contentMd: body.contentMd,
+            messages: history,
+            question: body.question,
+          },
+          apiKey,
+        )
+        sendJson(res, 200, result)
+      } catch (err) {
+        sendJson(res, 502, {
+          error: err instanceof Error ? err.message : 'Falha no tutor',
+        })
+      }
+    })().catch((err) => {
+      sendJson(res, 500, {
+        error: err instanceof Error ? err.message : 'Erro interno no tutor',
+      })
+      next(err)
+    })
+  })
+}
+
+function openRouterApiPlugin(mode: string) {
   return {
-    name: 'aprendizz-grade-text-api',
+    name: 'aprendizz-openrouter-apis',
     configureServer(server: ViteDevServer) {
       attachGradeTextApi(server.middlewares, mode)
+      attachTutorChatApi(server.middlewares, mode)
     },
     configurePreviewServer(server: PreviewServer) {
       attachGradeTextApi(server.middlewares, mode)
+      attachTutorChatApi(server.middlewares, mode)
     },
   }
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss(), gradeTextApiPlugin(mode)],
+  plugins: [react(), tailwindcss(), openRouterApiPlugin(mode)],
   test: {
     environment: 'jsdom',
     globals: true,

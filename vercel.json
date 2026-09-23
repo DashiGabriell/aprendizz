@@ -7,6 +7,10 @@
     "api/grade-text.ts": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "api/tutor-chat.ts": {
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
   "rewrites": [

@@ -3,6 +3,7 @@ import { Navigate, useParams } from 'react-router-dom'
 import { ExercisePanel } from '../components/ExercisePanel'
 import { InfoModal } from '../components/InfoModal'
 import { LessonCompleteModal } from '../components/LessonCompleteModal'
+import { LessonTutorChat } from '../components/LessonTutorChat'
 import { Markdown } from '../components/Markdown'
 import { PlayerLayout } from '../components/PlayerLayout'
 import type { NeighborLesson } from '../components/PlayerFooter'
@@ -203,6 +204,8 @@ export function LessonPage() {
           onClose={() => setBlockedNextOpen(false)}
         />
       ) : null}
+
+      {lesson && !loading && !isAssessment ? <LessonTutorChat lesson={lesson} /> : null}
     </PlayerLayout>
   )
 }
