@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Connect, PreviewServer, ViteDevServer } from 'vite'
 import { gradeFreeTextWithOpenRouter } from './server/gradeTextAgent.ts'
 import { tutorChatWithOpenRouter } from './server/tutorChatAgent.ts'
+import { saveTutorExchange, verifySupabaseUserId } from './server/tutorPersist.ts'
 
 function readJsonBody(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -30,8 +31,16 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body))
 }
 
-function readOpenRouterKey(mode: string) {
+function applyEnv(mode: string) {
   const env = loadEnv(mode, process.cwd(), '')
+  for (const [key, value] of Object.entries(env)) {
+    if (process.env[key] === undefined) process.env[key] = value
+  }
+  return env
+}
+
+function readOpenRouterKey(mode: string) {
+  const env = applyEnv(mode)
   return (
     env.API_KEY_OPENROUTER?.trim() ||
     env.OPENROUTER_API_KEY?.trim() ||
@@ -103,6 +112,8 @@ function attachGradeTextApi(middlewares: Connect.Server, mode: string) {
 function attachTutorChatApi(middlewares: Connect.Server, mode: string) {
   middlewares.use('/api/tutor-chat', (req, res, next) => {
     void (async () => {
+      applyEnv(mode)
+
       if (req.method === 'OPTIONS') {
         res.statusCode = 204
         res.end()
@@ -116,14 +127,28 @@ function attachTutorChatApi(middlewares: Connect.Server, mode: string) {
       try {
         const body = (await readJsonBody(req)) as {
           lessonTitle?: string
+          lessonId?: string
           objectives?: string[]
           contentMd?: string
           messages?: Array<{ role?: string; content?: string }>
           question?: string
         }
 
-        if (!body?.lessonTitle?.trim() || !body?.contentMd?.trim() || !body?.question?.trim()) {
-          sendJson(res, 400, { error: 'lessonTitle, contentMd e question são obrigatórios' })
+        if (
+          !body?.lessonTitle?.trim() ||
+          !body?.contentMd?.trim() ||
+          !body?.question?.trim() ||
+          !body?.lessonId?.trim()
+        ) {
+          sendJson(res, 400, {
+            error: 'lessonTitle, lessonId, contentMd e question são obrigatórios',
+          })
+          return
+        }
+
+        const userId = await verifySupabaseUserId(req.headers.authorization)
+        if (!userId) {
+          sendJson(res, 401, { error: 'Faça login novamente para conversar com o Joshua.' })
           return
         }
 
@@ -160,7 +185,15 @@ function attachTutorChatApi(middlewares: Connect.Server, mode: string) {
           },
           apiKey,
         )
-        sendJson(res, 200, result)
+
+        await saveTutorExchange({
+          userId,
+          lessonId: body.lessonId,
+          question: body.question,
+          answer: result.reply,
+        })
+
+        sendJson(res, 200, { ...result, saved: true })
       } catch (err) {
         sendJson(res, 502, {
           error: err instanceof Error ? err.message : 'Falha no tutor',

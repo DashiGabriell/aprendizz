@@ -1,7 +1,9 @@
 /**
- * Vercel Serverless Function — lesson tutor via OpenRouter.
- * Self-contained so production bundling does not depend on ../server or ../src imports.
+ * Vercel Serverless Function — lesson tutor (Joshua) via OpenRouter.
+ * Persists Q&A server-side with Supabase service role after verifying the user JWT.
  */
+
+import { createClient } from '@supabase/supabase-js'
 
 type TutorMessage = { role?: string; content?: string }
 
@@ -11,11 +13,13 @@ type TutorBody = {
   contentMd?: string
   messages?: TutorMessage[]
   question?: string
+  lessonId?: string
 }
 
 type VercelRequest = {
   method?: string
   body?: TutorBody | string
+  headers?: Record<string, string | string[] | undefined>
   on?: (event: string, listener: (...args: unknown[]) => void) => void
 }
 
@@ -35,8 +39,40 @@ const FALLBACK_MODELS = [
 const MAX_CONTENT_CHARS = 8_000
 const MAX_HISTORY = 8
 
-function readEnvKey() {
+function headerValue(
+  headers: VercelRequest['headers'],
+  name: string,
+): string | undefined {
+  if (!headers) return undefined
+  const raw = headers[name] ?? headers[name.toLowerCase()]
+  if (Array.isArray(raw)) return raw[0]
+  return raw
+}
+
+function readOpenRouterKey() {
   return process.env.API_KEY_OPENROUTER?.trim() || process.env.OPENROUTER_API_KEY?.trim() || ''
+}
+
+function readSupabaseUrl() {
+  return process.env.SUPABASE_URL?.trim() || process.env.VITE_SUPABASE_URL?.trim() || ''
+}
+
+function readServiceRoleKey() {
+  return (
+    process.env.SUPABASE_SERVICE_ROLE_SECRET?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    ''
+  )
+}
+
+function readAnonKey() {
+  return (
+    process.env.SUPABASE_ANON_PUBLIC?.trim() ||
+    process.env.VITE_SUPABASE_ANON_KEY?.trim() ||
+    process.env.SUPABASE_ANON_KEY?.trim() ||
+    ''
+  )
 }
 
 function truncateLessonContent(contentMd: string): string {
@@ -55,13 +91,13 @@ function buildTutorSystemPrompt(input: {
       ? input.objectives.map((o) => `- ${o}`).join('\n')
       : '- (não informados)'
 
-  return `Você é Joseph, o Professor Aprendizz — tutor 24h de um LMS de Backend (Node.js + TypeScript).
+  return `Você é Joshua, o Professor Aprendizz — tutor 24h de um LMS de Backend (Node.js + TypeScript).
 
 Missão:
 - Tirar dúvidas **somente sobre o tema e o conteúdo desta aula**.
 - Orientar com clareza pedagógica, exemplos curtos e analogias quando ajudar.
 - Se a pergunta fugir do tema da aula, diga isso com educação e reconduza ao conteúdo atual (pode sugerir o que estudar nesta aula).
-- Pode se apresentar como Joseph quando fizer sentido.
+- Pode se apresentar como Joshua quando fizer sentido.
 
 Regras rígidas:
 - NÃO entregue gabarito de exercícios (MCQ, texto livre ou código).
@@ -167,6 +203,116 @@ async function tutorReply(
   throw lastError ?? new Error('Falha no tutor')
 }
 
+async function verifyUserId(authHeader: string | undefined): Promise<string | null> {
+  if (!authHeader?.toLowerCase().startsWith('bearer ')) return null
+  const jwt = authHeader.slice(7).trim()
+  if (!jwt) return null
+
+  const url = readSupabaseUrl()
+  const anon = readAnonKey()
+  const service = readServiceRoleKey()
+  if (!url || (!anon && !service)) return null
+
+  const client = createClient(url, anon || service, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data, error } = await client.auth.getUser(jwt)
+  if (error || !data.user?.id) return null
+  return data.user.id
+}
+
+async function persistExchange(args: {
+  userId: string
+  lessonId: string
+  question: string
+  answer: string
+}): Promise<void> {
+  const url = readSupabaseUrl()
+  const service = readServiceRoleKey()
+  if (!url || !service) {
+    throw new Error(
+      'SUPABASE_URL / SUPABASE_SERVICE_ROLE_SECRET ausentes no servidor — não foi possível salvar o chat.',
+    )
+  }
+
+  const admin = createClient(url, service, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const { error } = await admin.from('aprendizz_tutor_messages').insert([
+    {
+      user_id: args.userId,
+      lesson_id: args.lessonId,
+      role: 'user',
+      content: args.question.trim(),
+    },
+    {
+      user_id: args.userId,
+      lesson_id: args.lessonId,
+      role: 'assistant',
+      content: args.answer.trim(),
+    },
+  ])
+
+  if (error) {
+    throw new Error(`Falha ao salvar conversa: ${error.message}`)
+  }
+}
+
+/** Fallback via Management API when service role insert is unavailable. */
+async function persistExchangeViaToken(args: {
+  userId: string
+  lessonId: string
+  question: string
+  answer: string
+}): Promise<void> {
+  const projectId = process.env.SUPABASE_PROJECT_ID?.trim()
+  const token = process.env.SUPABASE_TOKEN?.trim()
+  if (!projectId || !token) {
+    throw new Error('SUPABASE_PROJECT_ID / SUPABASE_TOKEN ausentes para fallback de persistência')
+  }
+
+  const tag = `m${Date.now().toString(36)}`
+  const q = args.question.replaceAll(`$${tag}$`, '')
+  const a = args.answer.replaceAll(`$${tag}$`, '')
+  const sql = `
+insert into public.aprendizz_tutor_messages (user_id, lesson_id, role, content)
+values
+  ('${args.userId}'::uuid, '${args.lessonId}'::uuid, 'user', $${tag}$${q}$${tag}$),
+  ('${args.userId}'::uuid, '${args.lessonId}'::uuid, 'assistant', $${tag}$${a}$${tag}$);
+`
+
+  const res = await fetch(`https://api.supabase.com/v1/projects/${projectId}/database/query`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query: sql }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Fallback SQL save failed: ${res.status} ${text.slice(0, 200)}`)
+  }
+}
+
+async function saveExchange(args: {
+  userId: string
+  lessonId: string
+  question: string
+  answer: string
+}): Promise<void> {
+  try {
+    await persistExchange(args)
+  } catch (primaryErr) {
+    try {
+      await persistExchangeViaToken(args)
+    } catch {
+      throw primaryErr instanceof Error ? primaryErr : new Error('Falha ao salvar conversa')
+    }
+  }
+}
+
 function readBody(req: VercelRequest): Promise<TutorBody> {
   if (req.body && typeof req.body === 'object') {
     return Promise.resolve(req.body)
@@ -203,7 +349,9 @@ function sendJson(res: VercelResponse, status: number, body: unknown) {
   res.json(body)
 }
 
-function normalizeHistory(raw: TutorMessage[] | undefined): Array<{ role: 'user' | 'assistant'; content: string }> {
+function normalizeHistory(
+  raw: TutorMessage[] | undefined,
+): Array<{ role: 'user' | 'assistant'; content: string }> {
   if (!Array.isArray(raw)) return []
   return raw
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
@@ -234,12 +382,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  if (!body.lessonTitle?.trim() || !body.contentMd?.trim() || !body.question?.trim()) {
-    sendJson(res, 400, { error: 'lessonTitle, contentMd e question são obrigatórios' })
+  if (
+    !body.lessonTitle?.trim() ||
+    !body.contentMd?.trim() ||
+    !body.question?.trim() ||
+    !body.lessonId?.trim()
+  ) {
+    sendJson(res, 400, {
+      error: 'lessonTitle, lessonId, contentMd e question são obrigatórios',
+    })
     return
   }
 
-  const apiKey = readEnvKey()
+  const userId = await verifyUserId(headerValue(req.headers, 'authorization'))
+  if (!userId) {
+    sendJson(res, 401, { error: 'Faça login novamente para conversar com o Joshua.' })
+    return
+  }
+
+  const apiKey = readOpenRouterKey()
   if (!apiKey) {
     sendJson(res, 500, {
       error:
@@ -259,7 +420,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       apiKey,
     )
-    sendJson(res, 200, { reply })
+
+    await saveExchange({
+      userId,
+      lessonId: body.lessonId,
+      question: body.question,
+      answer: reply,
+    })
+
+    sendJson(res, 200, { reply, saved: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Falha no tutor'
     console.error('[tutor-chat]', message)

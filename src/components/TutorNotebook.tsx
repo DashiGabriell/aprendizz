@@ -25,7 +25,7 @@ export function TutorNotebook({ entries, loading }: Props) {
     <section className="block-panel tutor-notebook">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="eyebrow">Caderno com o Joseph</p>
+          <p className="eyebrow">Caderno com o Joshua</p>
           <h2 className="text-xl">Anotações do professor</h2>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
             Perguntas e respostas salvas por aula — revise como um caderno de estudos.
@@ -47,7 +47,7 @@ export function TutorNotebook({ entries, loading }: Props) {
 
       {!loading && entries.length === 0 ? (
         <p className="text-sm text-[var(--muted)]">
-          Ainda não há conversas com o Joseph. Abra uma aula e tire uma dúvida pelo ícone do
+          Ainda não há conversas com o Joshua. Abra uma aula e tire uma dúvida pelo ícone do
           professor.
         </p>
       ) : null}
@@ -76,7 +76,7 @@ export function TutorNotebook({ entries, loading }: Props) {
                   )}
                   <p className="text-xs text-[var(--muted)]">{formatDatePt(entry.askedAt)}</p>
                 </div>
-                <span className="tutor-notebook-tag">Joseph</span>
+                <span className="tutor-notebook-tag">Joshua</span>
               </div>
 
               <div className="tutor-notebook-qa">
@@ -87,7 +87,7 @@ export function TutorNotebook({ entries, loading }: Props) {
                   </div>
                 </div>
                 <div>
-                  <p className="tutor-notebook-role">Joseph respondeu</p>
+                  <p className="tutor-notebook-role">Joshua respondeu</p>
                   <div className="tutor-notebook-md">
                     <Markdown content={entry.answer} />
                   </div>

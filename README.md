@@ -72,7 +72,12 @@ O repo já inclui `vercel.json` com:
 |------|--------|
 | `VITE_SUPABASE_URL` | URL do projeto Supabase |
 | `VITE_SUPABASE_ANON_KEY` | anon/public key |
-| `API_KEY_OPENROUTER` | chave OpenRouter (correção de texto) |
+| `SUPABASE_URL` | mesma URL (API server-side) |
+| `SUPABASE_ANON_PUBLIC` | mesma anon key (validar JWT do aluno) |
+| `SUPABASE_SERVICE_ROLE_SECRET` | service role JWT — grava chat do Joshua |
+| `SUPABASE_PROJECT_ID` | id do projeto (fallback de persistência) |
+| `SUPABASE_TOKEN` | Management token `sbp_…` (fallback) |
+| `API_KEY_OPENROUTER` | chave OpenRouter (texto + Joshua) |
 | `OPENROUTER_MODEL` | opcional; default `google/gemma-4-31b-it:free` |
 
 7. No Supabase → Authentication → URL Configuration, adicione as URLs da Vercel em **Site URL** e **Redirect URLs** (ex.: `https://aprendizz.vercel.app/**`)

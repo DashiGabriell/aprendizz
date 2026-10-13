@@ -1,15 +1,6 @@
 import { ensureAuthSession, supabase } from './supabase'
 import type { TutorChatMessage } from './tutorChatCore'
 
-export type TutorMessageRow = {
-  id: string
-  user_id: string
-  lesson_id: string
-  role: 'user' | 'assistant'
-  content: string
-  created_at: string
-}
-
 export type TutorNotebookEntry = {
   id: string
   lessonId: string
@@ -31,7 +22,7 @@ export async function listTutorMessagesForLesson(
 
   const { data, error } = await supabase
     .from('aprendizz_tutor_messages')
-    .select('role, content')
+    .select('role, content, created_at')
     .eq('user_id', userId)
     .eq('lesson_id', lessonId)
     .order('created_at', { ascending: true })
@@ -46,36 +37,6 @@ export async function listTutorMessagesForLesson(
     }))
 
   return { data: messages, error: null }
-}
-
-export async function appendTutorExchange(args: {
-  userId: string
-  lessonId: string
-  question: string
-  answer: string
-}): Promise<{ error: string | null }> {
-  const auth = await ensureAuthSession()
-  if (!auth.session) {
-    return { error: auth.error ?? 'Sessão expirada. Faça login novamente.' }
-  }
-
-  const rows = [
-    {
-      user_id: args.userId,
-      lesson_id: args.lessonId,
-      role: 'user' as const,
-      content: args.question.trim(),
-    },
-    {
-      user_id: args.userId,
-      lesson_id: args.lessonId,
-      role: 'assistant' as const,
-      content: args.answer.trim(),
-    },
-  ]
-
-  const { error } = await supabase.from('aprendizz_tutor_messages').insert(rows)
-  return { error: error?.message ?? null }
 }
 
 export async function listTutorNotebook(
@@ -127,7 +88,6 @@ export async function listTutorNotebook(
     })
   }
 
-  // Newest first for the notebook
   entries.reverse()
   return { data: entries, error: null }
 }

@@ -3,7 +3,7 @@ import { Markdown } from './Markdown'
 import { useAuth } from '../hooks/useAuth'
 import { askLessonTutor } from '../lib/tutorChat'
 import type { TutorChatMessage } from '../lib/tutorChatCore'
-import { appendTutorExchange, listTutorMessagesForLesson } from '../lib/tutorMessages'
+import { listTutorMessagesForLesson } from '../lib/tutorMessages'
 import type { Lesson } from '../lib/types'
 
 type Props = {
@@ -11,10 +11,10 @@ type Props = {
 }
 
 const WELCOME =
-  'Oi! Sou o **Joseph**, professor desta aula. Pergunte sobre o conteúdo — posso orientar, mas não entrego gabarito dos exercícios.'
+  'Oi! Sou o **Joshua**, professor desta aula. Pergunte sobre o conteúdo — posso orientar, mas não entrego gabarito dos exercícios.'
 
 function isWelcomeMessage(content: string) {
-  return content.includes('Sou o **Joseph**') || content.includes('Sou o Joseph')
+  return content.includes('Sou o **Joshua**') || content.includes('Sou o Joshua')
 }
 
 export function LessonTutorChat({ lesson }: Props) {
@@ -91,6 +91,7 @@ export function LessonTutorChat({ lesson }: Props) {
     setBusy(true)
 
     const result = await askLessonTutor({
+      lessonId: lesson.id,
       lessonTitle: lesson.title,
       objectives: lesson.objectives,
       contentMd: lesson.content_md,
@@ -98,24 +99,17 @@ export function LessonTutorChat({ lesson }: Props) {
       question,
     })
 
+    setBusy(false)
+
     if (result.error || !result.data) {
-      setBusy(false)
-      setError(result.error ?? 'Falha ao consultar o Joseph')
+      setError(result.error ?? 'Falha ao consultar o Joshua')
       return
     }
 
-    const reply = result.data.reply
-    setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+    setMessages((prev) => [...prev, { role: 'assistant', content: result.data!.reply }])
 
-    const saved = await appendTutorExchange({
-      userId: user.id,
-      lessonId: lesson.id,
-      question,
-      answer: reply,
-    })
-    setBusy(false)
-    if (saved.error) {
-      setError(`Resposta ok, mas não salvei no caderno: ${saved.error}`)
+    if (!result.data.saved) {
+      setError('Resposta ok, mas a conversa pode não ter sido salva no caderno.')
     }
   }
 
@@ -126,18 +120,18 @@ export function LessonTutorChat({ lesson }: Props) {
           className="lesson-tutor-panel"
           id={panelId}
           role="dialog"
-          aria-label={`Joseph — professor da aula ${lesson.title}`}
+          aria-label={`Joshua — professor da aula ${lesson.title}`}
         >
           <header className="lesson-tutor-header">
             <div className="lesson-tutor-header-text">
-              <p className="lesson-tutor-eyebrow">Professor Joseph</p>
+              <p className="lesson-tutor-eyebrow">Professor Joshua</p>
               <h2>Dúvidas desta aula</h2>
               <p className="lesson-tutor-sub">{lesson.title}</p>
             </div>
             <button
               type="button"
               className="lesson-tutor-close"
-              aria-label="Fechar chat do Joseph"
+              aria-label="Fechar chat do Joshua"
               onClick={() => setOpen(false)}
             >
               ×
@@ -156,7 +150,7 @@ export function LessonTutorChat({ lesson }: Props) {
                     className={`lesson-tutor-bubble is-${message.role}`}
                   >
                     <div className="lesson-tutor-bubble-label">
-                      {message.role === 'assistant' ? 'Joseph' : 'Você'}
+                      {message.role === 'assistant' ? 'Joshua' : 'Você'}
                     </div>
                     <div className="lesson-tutor-md">
                       <Markdown content={message.content} />
@@ -167,7 +161,7 @@ export function LessonTutorChat({ lesson }: Props) {
 
             {busy ? (
               <div className="lesson-tutor-bubble is-assistant is-typing" aria-live="polite">
-                Joseph está pensando…
+                Joshua está pensando…
               </div>
             ) : null}
             {error ? <p className="lesson-tutor-error">{error}</p> : null}
@@ -179,7 +173,7 @@ export function LessonTutorChat({ lesson }: Props) {
               rows={2}
               value={input}
               disabled={busy || loadingHistory}
-              placeholder="Pergunte ao Joseph sobre esta aula… (Markdown ok)"
+              placeholder="Pergunte ao Joshua sobre esta aula… (Markdown ok)"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -200,7 +194,7 @@ export function LessonTutorChat({ lesson }: Props) {
         className="lesson-tutor-fab"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        aria-label={open ? 'Fechar Joseph' : 'Abrir Joseph, professor da aula'}
+        aria-label={open ? 'Fechar Joshua' : 'Abrir Joshua, professor da aula'}
         onClick={() => setOpen((v) => !v)}
       >
         <img src="/dev.png" alt="" width={56} height={56} draggable={false} />
